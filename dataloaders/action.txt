@@ -1,0 +1,7 @@
+1 normal-gait
+2 O-leg-gait
+3 O-leg-gait-right
+4 O-leg-gait-left
+5 X-leg-gait-symmetry
+6 X-leg-gait-right
+7 X-leg-gait-left
