@@ -11,9 +11,9 @@ class Path(object):
             return root_dir, output_dir
         elif database == 'hmdb51':
             # folder that contains class labels
-            root_dir = 'e:/paperCode/posedir/aldataset_1'
+            root_dir = 'F:/dataset/leg_vedio/koutu/aldataset'
 
-            output_dir = 'e:/paperCode/posedir/aldataset_out'
+            output_dir = 'F:/dataset/leg_vedio/koutu/action_data_out'
 
             return root_dir, output_dir
         else:

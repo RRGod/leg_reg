@@ -6,6 +6,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from mypath import Path
 
+ACTION_TXT = 'F:/dataset/leg_vedio/koutu/action.txt'
 class VideoDataset(Dataset):
     def __init__(self, dataset='ucf101', split='train', clip_len=4, preprocess=False):
         self.root_dir, self.output_dir = Path.db_dir(dataset)
@@ -48,8 +49,8 @@ class VideoDataset(Dataset):
                     for id, label in enumerate(sorted(self.label2index)):
                         f.writelines(str(id+1) + ' ' + label + '\n')
         elif dataset == 'hmdb51':
-            if not os.path.exists('e:/courseCode/code/dataloaders/action.txt'):
-                with open('e:/courseCode/code/dataloaders/action.txt', 'w') as f:
+            if not os.path.exists(ACTION_TXT):
+                with open(ACTION_TXT, 'w') as f:
                     for id, label in enumerate(sorted(self.label2index)):
                         f.writelines(str(id+1) + ' ' + label + '\n')
 
@@ -101,37 +102,37 @@ class VideoDataset(Dataset):
     def preprocess(self):
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
-            # os.mkdir(os.path.join(self.output_dir, 'train'))
-            # os.mkdir(os.path.join(self.output_dir, 'val'))
-            # os.mkdir(os.path.join(self.output_dir, 'test'))
+            os.mkdir(os.path.join(self.output_dir, 'train'))
+            os.mkdir(os.path.join(self.output_dir, 'val'))
+            os.mkdir(os.path.join(self.output_dir, 'test'))
 
         # Split train/val/test sets
         for file in os.listdir(self.root_dir):
             file_path = os.path.join(self.root_dir, file)
             video_files = [name for name in os.listdir(file_path)]
 
-            # train_and_valid, test = train_test_split(video_files, test_size=0.2, random_state=42)
-            # train, val = train_test_split(train_and_valid, test_size=0.2, random_state=42)
+            train_and_valid, test = train_test_split(video_files, test_size=0.2, random_state=42)
+            train, val = train_test_split(train_and_valid, test_size=0.2, random_state=42)
 
             train_dir = os.path.join(self.output_dir, 'train', file)
-            # val_dir = os.path.join(self.output_dir, 'val', file)
-            # test_dir = os.path.join(self.output_dir, 'test', file)
+            val_dir = os.path.join(self.output_dir, 'val', file)
+            test_dir = os.path.join(self.output_dir, 'test', file)
 
             if not os.path.exists(train_dir):
                 os.mkdir(train_dir)
-            # if not os.path.exists(val_dir):
-            #     os.mkdir(val_dir)
-            # if not os.path.exists(test_dir):
-            #     os.mkdir(test_dir)
+            if not os.path.exists(val_dir):
+                os.mkdir(val_dir)
+            if not os.path.exists(test_dir):
+                os.mkdir(test_dir)
 
             for video in video_files:
                 self.process_video(video, file, train_dir)
 
-            # for video in val:
-            #     self.process_video(video, file, val_dir)
-            #
-            # for video in test:
-            #     self.process_video(video, file, test_dir)
+            for video in val:
+                self.process_video(video, file, val_dir)
+
+            for video in test:
+                self.process_video(video, file, test_dir)
 
         print('Preprocessing finished.')
 

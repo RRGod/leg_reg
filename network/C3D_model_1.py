@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from mypath import Path
+import torch.nn.functional as F
 
 class C3D(nn.Module):
     """
@@ -9,7 +10,7 @@ class C3D(nn.Module):
 
     def __init__(self, num_classes, pretrained=False):
         super(C3D, self).__init__()
-
+        hidden_dim = 12
         self.conv1 = nn.Conv3d(3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
         self.bn1 = nn.BatchNorm3d(64)
@@ -26,18 +27,26 @@ class C3D(nn.Module):
         self.pool4 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
         self.bn4 = nn.BatchNorm3d(64)
 
+        self.bin_num = [1, 2, 4, 8]  # 水平条的尺度
+        # 全连接层，hidden_dim = 256
+        # sum(self.bin_num) * 2, 128, hidden_dim = 31 * 2, 128, 256 = 62, 128, 256
+        # 反向传播过程中，利用该全连接矩阵与最后特征做tensor乘法以实现维度扩展，注意实现参数初始化
+        self.fc_bin = nn.ParameterList([
+            nn.Parameter(
+                nn.init.xavier_uniform_(
+                    torch.zeros(sum(self.bin_num) * 2, 64, hidden_dim)))])
 
         self.fc = nn.Linear(64*7*7, num_classes)
 
         self.relu = nn.ReLU()
-
+        self.num_classes = num_classes
         self.__init_weight()
 
         if pretrained:
             self.__load_pretrained_weights()
 
     def forward(self, x):
-
+        tmp = x
         x = self.relu(self.bn1(self.conv1(x)))
         x = self.pool1(x)
 
@@ -49,10 +58,29 @@ class C3D(nn.Module):
 
         x = self.relu(self.bn4(self.conv4a(x)))
         x = self.pool4(x)
+        n, c, d, h, w = x.size()
+        x = x.reshape(n, c * d, h, w)
+        x = F.pad(x, (0, 1, 0, 0), mode='constant', value=0)
 
-        x = x.reshape(-1, 64*7*7)
+        feature = list()
+        for num_bin in self.bin_num:
+            z = x.view(n, c, num_bin, -1)
+            z = z.mean(3) + z.max(3)[0]
+            feature.append(z)
+            z = x.view(n, c, num_bin, -1)
+            z = z.mean(3) + z.max(3)[0]
+            feature.append(z)
+        feature = torch.cat(feature, 2).permute(2, 0, 1).contiguous()
 
-        logits = self.fc(x)
+        feature = feature.matmul(self.fc_bin[0])
+
+        feature = feature.permute(1, 0, 2).contiguous()
+
+        feature = F.pad(feature, (0, 2+(6*7), 0, 26), mode='constant', value=0)
+
+        feature = feature.reshape(-1,64*7*7)
+
+        logits = self.fc(feature)
 
         return logits
 
@@ -132,7 +160,7 @@ def get_10x_lr_params(model):
 
 if __name__ == "__main__":
 
-    inputs = torch.rand(12, 3, 10, 112, 112)
+    inputs = torch.rand(8, 3, 10, 112, 112)
     net = C3D(num_classes=7, pretrained=False)
 
     outputs = net.forward(inputs)

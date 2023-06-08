@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 from dataloaders.dataset import VideoDataset
-from network import C3D_model, R2Plus1D_model, R3D_model
+from network import C3D_model_1, R2Plus1D_model, R3D_model
 
 
 # Use GPU if available else revert to CPU
@@ -60,7 +60,7 @@ def train_model(dataset=dataset, save_dir=save_dir, num_classes=num_classes, lr=
     """
 
     if modelName == 'C3D':
-        model = C3D_model.C3D(num_classes=num_classes, pretrained=False)
+        model = C3D_model_1.C3D(num_classes=num_classes, pretrained=False)
         train_params = [{'params': model.parameters(), 'lr': lr}]
     elif modelName == 'R2Plus1D':
         model = R2Plus1D_model.R2Plus1DClassifier(num_classes=num_classes, layer_sizes=(2, 2, 2, 2))
@@ -193,7 +193,7 @@ def train_model(dataset=dataset, save_dir=save_dir, num_classes=num_classes, lr=
                     'epoch': epoch + 1,
                     'state_dict': model.state_dict(),
                     'opt_dict': optimizer.state_dict(),
-                }, os.path.join("./", 'models', ' .tar'))
+                }, os.path.join("./", 'models', '20230607_1 .tar'))
 
 
 
