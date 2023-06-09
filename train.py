@@ -13,14 +13,14 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 from dataloaders.dataset import VideoDataset
-from network import C3D_model_1, R2Plus1D_model, R3D_model
+from network import C3D_model_1, R2Plus1D_model, R3D_model,Uniformer
 
 
 # Use GPU if available else revert to CPU
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("Device being used:", device)
 
-nEpochs = 20  # Number of epochs for training
+nEpochs = 1000  # Number of epochs for training
 resume_epoch = 0  # Default is 0, change if want to resume
 useTest = True # See evolution of the test set when training
 nTestInterval = 1 # Run on test set every nTestInterval epochs
@@ -48,7 +48,8 @@ else:
     run_id = int(runs[-1].split('_')[-1]) + 1 if runs else 0
 
 save_dir = os.path.join(save_dir_root, 'run', 'run_' + str(run_id))
-modelName = 'C3D' # Options: C3D or R2Plus1D or R3D
+#modelName = 'C3D' # Options: C3D or R2Plus1D or R3D
+modelName = 'uniformer' # Options: C3D or R2Plus1D or R3D
 saveName = modelName + '-' + dataset
 
 def train_model(dataset=dataset, save_dir=save_dir, num_classes=num_classes, lr=lr,
@@ -69,6 +70,9 @@ def train_model(dataset=dataset, save_dir=save_dir, num_classes=num_classes, lr=
     elif modelName == 'R3D':
         model = R3D_model.R3DClassifier(num_classes=num_classes, layer_sizes=(2, 2, 2, 2))
         train_params = model.parameters()
+    elif modelName == 'uniformer':
+        model = Uniformer.Uniformer(num_classes=num_classes)
+        train_params = [{'params': model.parameters(), 'lr': lr}]
     else:
         print('We only implemented C3D and R2Plus1D models.')
         raise NotImplementedError
