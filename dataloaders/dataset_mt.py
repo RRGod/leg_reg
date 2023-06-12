@@ -5,9 +5,11 @@ import cv2
 import numpy as np
 from torch.utils.data import Dataset
 from mypath import Path
+from PIL import Image
+from imgaug import augmenters as iaa
 
 ACTION_TXT = 'F:/dataset/leg_vedio/koutu/action.txt'
-class VideoDataset(Dataset):
+class VideoDataset_mt(Dataset):
     def __init__(self, dataset='ucf101', split='train', clip_len=4, preprocess=False):
         self.root_dir, self.output_dir = Path.db_dir(dataset)
         folder = os.path.join(self.output_dir, split)
@@ -61,15 +63,23 @@ class VideoDataset(Dataset):
     def __getitem__(self, index):
         # Loading and preprocessing.
         buffer = self.load_frames(self.fnames[index])
+        buffer1 = self.load_frames_1(self.fnames[index])
         buffer = self.crop(buffer, self.clip_len, self.crop_size)
+
+        buffer1 = self.crop(buffer1,self.clip_len,self.crop_size)
         labels = np.array(self.label_array[index])
 
         if self.split == 'test':
             # Perform data augmentation
             buffer = self.randomflip(buffer)
+            buffer1 = self.randomflip(buffer1)
         buffer = self.normalize(buffer)
         buffer = self.to_tensor(buffer)
-        return torch.from_numpy(buffer), torch.from_numpy(labels)
+
+        buffer1 = self.normalize(buffer1)
+        buffer1 = self.to_tensor(buffer1)
+
+        return torch.from_numpy(buffer), torch.from_numpy(labels),torch.from_numpy(buffer1)
 
     def check_integrity(self):
         if not os.path.exists(self.root_dir):
@@ -105,7 +115,6 @@ class VideoDataset(Dataset):
             os.mkdir(os.path.join(self.output_dir, 'train'))
             os.mkdir(os.path.join(self.output_dir, 'val'))
             os.mkdir(os.path.join(self.output_dir, 'test'))
-            os.mkdir(os.path.join(self.output_dir, 'gait'))
 
         # Split train/val/test sets
         for file in os.listdir(self.root_dir):
@@ -118,7 +127,6 @@ class VideoDataset(Dataset):
             train_dir = os.path.join(self.output_dir, 'train', file)
             val_dir = os.path.join(self.output_dir, 'val', file)
             test_dir = os.path.join(self.output_dir, 'test', file)
-            gait_dir = os.path.join(self.output_dir, 'gait', file)
 
             if not os.path.exists(train_dir):
                 os.mkdir(train_dir)
@@ -126,8 +134,6 @@ class VideoDataset(Dataset):
                 os.mkdir(val_dir)
             if not os.path.exists(test_dir):
                 os.mkdir(test_dir)
-            if not os.path.exists(gait_dir):
-                os.mkdir(gait_dir)
 
             for video in video_files:
                 self.process_video(video, file, train_dir)
@@ -137,9 +143,6 @@ class VideoDataset(Dataset):
 
             for video in test:
                 self.process_video(video, file, test_dir)
-
-            for video in test:
-                self.process_video(video, file, gait_dir)
 
         print('Preprocessing finished.')
 
@@ -211,6 +214,34 @@ class VideoDataset(Dataset):
         for i, frame_name in enumerate(frames):
             frame = np.array(cv2.imread(frame_name)).astype(np.float64)
             buffer[i] = frame
+
+        return buffer
+    #Image.fromarray(np.transpose(buffer1,(1,2,0)))
+
+
+    def load_frames_1(self, file_dir):
+        seq = iaa.Sequential([
+            iaa.Flipud(0.5),  # vertically flip 20% of all images
+            iaa.Fliplr(0.5),  # 镜像
+            iaa.Multiply((1.2, 1.5)),  # change brightness, doesn't affect BBs
+            iaa.GaussianBlur(sigma=(0, 3.0)),  # iaa.GaussianBlur(0.5),
+            iaa.Affine(
+                translate_px={"x": 15, "y": 15},
+                scale=(0.8, 0.95),
+                rotate=(-30, 30)
+            )  # translate by 40/60px on x/y axis, and scale to 50-70%, affects BBs
+        ])
+
+        seq_determinisitic = seq.to_deterministic()
+        frames = sorted([os.path.join(file_dir, img) for img in os.listdir(file_dir)])
+        frame_count = len(frames)
+        buffer = np.empty((frame_count, self.resize_height, self.resize_width, 3), np.dtype('float64'))
+        for i, frame_name in enumerate(frames):
+            frame = np.array(cv2.imread(frame_name)).astype(np.float32)
+            frame = frame.astype(np.uint8)
+            frame = np.transpose(frame,(2,0,1))
+            frame_aug = seq_determinisitic.augment_images(frame)
+            buffer[i] = np.transpose(frame_aug,(1,2,0))
 
         return buffer
 

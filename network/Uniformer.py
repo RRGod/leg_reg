@@ -218,6 +218,7 @@ class Uniformer(nn.Module):
         )
 
     def forward(self, video):
+        video = video.type(torch.cuda.FloatTensor)
         x = self.to_tokens(video)
 
         for transformer, conv in self.stages:
